@@ -1,0 +1,119 @@
+window.addEventListener("load", main);
+
+const canvas = document.getElementById("app");
+const ctx = canvas.getContext("2d");
+const audioCtx = new AudioContext();
+
+const X_MIN = -14;
+const X_MAX = 14;
+const SAMPLES = 70;
+let WIDTH;
+let HEIGHT; 
+let plottedPoints = [];
+
+canvas.addEventListener("click", playSound);
+
+function main(event) {
+	console.log("Starting app...");
+    plotFunction(x => x * x);
+}
+
+function setup() {
+    WIDTH = canvas.width;
+    HEIGHT = canvas.height;
+    plottedPoints = [];
+
+	ctx.fillStyle = "#353935";
+	ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    ctx.strokeStyle = "#e9e9e970";
+    const noteWidth = WIDTH / 35;
+    for (let i = 0; i < 35; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * noteWidth, 0);
+        ctx.lineTo(i * noteWidth, HEIGHT);
+        ctx.lineWidth = i % 7 === 0 ? 4 : 1;
+        ctx.stroke();
+    }
+    
+    ctx.strokeStyle = "#e9e9e970";
+    const noteHeight = HEIGHT / 35;
+    for (let i = 0; i < 35; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, i * noteHeight);
+        ctx.lineTo(WIDTH, i * noteHeight);
+        ctx.lineWidth = i % 7 === 0 ? 4 : 1;
+        ctx.stroke();
+    }
+}
+
+function plotFunction(f) {
+    setup();
+    ctx.strokeStyle = "#2ECC71";
+    ctx.lineWidth = 4;
+    ctx.beginPath()
+
+    for (let i = 0; i <= SAMPLES; i++) {
+        const x = X_MIN + (i / SAMPLES) * (X_MAX - X_MIN)
+        const y = f(x)
+        plottedPoints.push(y);
+
+        const cx = ((x - X_MIN) / (X_MAX - X_MIN)) * WIDTH
+        const cy = HEIGHT - ((y - X_MIN) / (X_MAX - X_MIN)) * HEIGHT
+
+        if (i === 0) ctx.moveTo(cx, cy)
+        else ctx.lineTo(cx, cy)
+    }
+
+    ctx.stroke()
+}
+
+async function playSound() {
+    const oscillator = audioCtx.createOscillator();
+
+    oscillator.frequency.setValueAtTime(isNaN(plottedPoints[0]) ? 0 : plottedPoints[0], audioCtx.currentTime);
+    oscillator.connect(audioCtx.destination);
+    oscillator.start();
+
+    for (let i = 1; i < SAMPLES; i++)  {
+        ctx.strokeStyle = "#4DA5E0";
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+
+        const x1 = X_MIN+ ((i - 1) / SAMPLES) * (X_MAX - X_MIN)
+        const point1 = plottedPoints[i - 1];
+        
+        const cx1 = ((x1 - X_MIN) / (X_MAX - X_MIN)) * WIDTH
+        const cy1 = HEIGHT - ((point1 - X_MIN) / (X_MAX - X_MIN)) * HEIGHT
+
+        const x = X_MIN+ (i / SAMPLES) * (X_MAX - X_MIN)
+        const point = plottedPoints[i];
+        
+        const cx = ((x - X_MIN) / (X_MAX - X_MIN)) * WIDTH
+        const cy = HEIGHT - ((point - X_MIN) / (X_MAX - X_MIN)) * HEIGHT
+
+        ctx.moveTo(cx1, cy1)
+         ctx.lineTo(cx, cy)
+
+        ctx.stroke()
+        await setFrequency(point + 262, oscillator);
+
+    }
+
+	setTimeout(() => { oscillator.stop(); }, 300);
+}
+
+function setFrequency(hz, oscillator) {
+    console.info("Setting frequency for oscillator: " + oscillator + " to " + hz + "Hz");
+
+    if (isNaN(hz)) {
+        hz = 0;
+    }
+
+    return new Promise((resolve, _) => {
+        setTimeout(() => {
+            oscillator.frequency.setValueAtTime(hz, audioCtx.currentTime);
+            resolve(hz);
+        }, 100);
+    });
+}
