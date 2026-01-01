@@ -6,7 +6,8 @@ const audioCtx = new AudioContext();
 
 const X_MIN = -14;
 const X_MAX = 14;
-const SAMPLES = 70;
+const SAMPLES = 400;
+const NOTE_PLAYTIME = 10;
 let WIDTH;
 let HEIGHT; 
 let plottedPoints = [];
@@ -15,10 +16,10 @@ canvas.addEventListener("click", playSound);
 
 function main(event) {
 	console.log("Starting app...");
-    plotFunction(x => x * x);
+    plotFunction(x => Math.cos(10*x) - 10 * Math.cos(2*x));
 }
 
-function setup() {
+function clearCanvas() {
     WIDTH = canvas.width;
     HEIGHT = canvas.height;
     plottedPoints = [];
@@ -28,7 +29,7 @@ function setup() {
 
     ctx.strokeStyle = "#e9e9e970";
     const noteWidth = WIDTH / 35;
-    for (let i = 0; i < 35; i++) {
+    for (let i = 1; i < 35; i++) {
         ctx.beginPath();
         ctx.moveTo(i * noteWidth, 0);
         ctx.lineTo(i * noteWidth, HEIGHT);
@@ -38,7 +39,7 @@ function setup() {
     
     ctx.strokeStyle = "#e9e9e970";
     const noteHeight = HEIGHT / 35;
-    for (let i = 0; i < 35; i++) {
+    for (let i = 1; i < 35; i++) {
         ctx.beginPath();
         ctx.moveTo(0, i * noteHeight);
         ctx.lineTo(WIDTH, i * noteHeight);
@@ -48,7 +49,7 @@ function setup() {
 }
 
 function plotFunction(f) {
-    setup();
+    clearCanvas();
     ctx.strokeStyle = "#2ECC71";
     ctx.lineWidth = 4;
     ctx.beginPath()
@@ -75,37 +76,33 @@ async function playSound() {
     oscillator.connect(audioCtx.destination);
     oscillator.start();
 
+    ctx.strokeStyle = "#4DA5E0";
+    ctx.lineWidth = 8;
+
     for (let i = 1; i < SAMPLES; i++)  {
-        ctx.strokeStyle = "#4DA5E0";
-        ctx.lineWidth = 8;
+        let {cx: cx1, cy: cy1} = getCoordinates(i - 1, plottedPoints[i - 1]);
+        let {cx, cy} = getCoordinates(i, plottedPoints[i]);
+
         ctx.beginPath();
+        ctx.moveTo(cx1, cy1);
+        ctx.lineTo(cx, cy);
+        ctx.stroke();
 
-        const x1 = X_MIN+ ((i - 1) / SAMPLES) * (X_MAX - X_MIN)
-        const point1 = plottedPoints[i - 1];
-        
-        const cx1 = ((x1 - X_MIN) / (X_MAX - X_MIN)) * WIDTH
-        const cy1 = HEIGHT - ((point1 - X_MIN) / (X_MAX - X_MIN)) * HEIGHT
-
-        const x = X_MIN+ (i / SAMPLES) * (X_MAX - X_MIN)
-        const point = plottedPoints[i];
-        
-        const cx = ((x - X_MIN) / (X_MAX - X_MIN)) * WIDTH
-        const cy = HEIGHT - ((point - X_MIN) / (X_MAX - X_MIN)) * HEIGHT
-
-        ctx.moveTo(cx1, cy1)
-         ctx.lineTo(cx, cy)
-
-        ctx.stroke()
-        await setFrequency(point + 262, oscillator);
-
+        await setFrequency(plottedPoints[i] + 262, oscillator);
     }
 
-	setTimeout(() => { oscillator.stop(); }, 300);
+	setTimeout(() => { oscillator.stop(); }, NOTE_PLAYTIME);
+}
+
+function getCoordinates(i, y) {
+    const x1 = X_MIN+ ((i) / SAMPLES) * (X_MAX - X_MIN);
+    const cx = ((x1 - X_MIN) / (X_MAX - X_MIN)) * WIDTH;
+    const cy = HEIGHT - ((y - X_MIN) / (X_MAX - X_MIN)) * HEIGHT;
+
+    return {cx, cy};
 }
 
 function setFrequency(hz, oscillator) {
-    console.info("Setting frequency for oscillator: " + oscillator + " to " + hz + "Hz");
-
     if (isNaN(hz)) {
         hz = 0;
     }
@@ -114,6 +111,6 @@ function setFrequency(hz, oscillator) {
         setTimeout(() => {
             oscillator.frequency.setValueAtTime(hz, audioCtx.currentTime);
             resolve(hz);
-        }, 100);
+        }, NOTE_PLAYTIME);
     });
 }
